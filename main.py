@@ -4,6 +4,7 @@ import feedparser
 import google.generativeai as genai
 from supabase import create_client
 
+# Your Secrets are already set up perfectly in GitHub
 URL = os.environ.get("SUPABASE_URL")
 KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 AI_KEY = os.environ.get("GEMINI_API_KEY")
@@ -13,45 +14,46 @@ genai.configure(api_key=AI_KEY)
 model = genai.GenerativeModel('gemini-2.0-flash')
 
 def start_bot():
-    # We changed this to the General Top Stories feed for a better test
+    # Changed to General Top Stories to guarantee data
     feed_url = "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en"
     feed = feedparser.parse(feed_url)
     
-    print(f"Found {len(feed.entries)} potential stories.")
+    print(f"Robot found {len(feed.entries)} potential stories.")
     
-    # Try the first 5 stories
+    # Process the top 5 stories
     for entry in feed.entries[:5]: 
         url = entry.link
         
-        # Check if URL exists
+        # Check if URL already exists in your table
         check = supabase.table("articles").select("id").eq("source_url", url).execute()
         
         if not check.data:
-            print(f"Processing: {entry.title}")
+            print(f"New story found! Summarizing: {entry.title}")
             try:
-                prompt = f"Write a professional 3-paragraph news summary for: {entry.title}. Focus on the facts."
+                prompt = f"Summarize this news in 3 professional paragraphs: {entry.title}. Link: {url}"
                 response = model.generate_content(prompt)
                 
-                # IMPORTANT: We use 'source_name' from the feed if available
-                source = getattr(entry, 'source', {'title': 'Google News'}).get('title', 'Google News')
+                # Get the news source name
+                source_name = getattr(entry, 'source', {}).get('title', 'Google News')
 
+                # Save to Supabase
                 data = {
                     "title": entry.title,
                     "content": response.text,
                     "source_url": url,
-                    "source_name": source,
-                    "category": "General",
-                    "is_approved": True # Changed to True so it shows up on your site immediately!
+                    "source_name": source_name,
+                    "category": "Top Stories",
+                    "is_approved": True # Let's make them live immediately for this test
                 }
                 
-                result = supabase.table("articles").insert(data).execute()
-                print(f"Successfully inserted article!")
+                supabase.table("articles").insert(data).execute()
+                print("Successfully saved to database!")
                 
-                time.sleep(5) 
+                time.sleep(5) # Give the AI a breath
             except Exception as e:
-                print(f"Error during AI summary: {e}")
+                print(f"AI error: {e}")
         else:
-            print("Article already exists in database. Skipping...")
+            print("Article already exists. Skipping...")
 
 if __name__ == "__main__":
     start_bot()
