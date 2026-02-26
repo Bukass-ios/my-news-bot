@@ -13,7 +13,7 @@ genai.configure(api_key=AI_KEY)
 model = genai.GenerativeModel('gemini-2.0-flash')
 
 def start_bot():
-    feed = feedparser.parse("https://news.google.com/rss/search?q=technology&hl=en-US")
+    feed = feedparser.parse("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en")
     
     # Let's limit it to just 2 articles for the first test to stay under quota
     for entry in feed.entries[:2]: 
